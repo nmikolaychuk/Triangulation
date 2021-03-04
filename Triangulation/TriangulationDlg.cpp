@@ -11,7 +11,7 @@
 #define new DEBUG_NEW
 #endif
 
-#define DOTS(x,y) (xp*((x)-xmin)), (yp*((y)-ymax))
+#define DOTS(x,y) (xp*((x)-xminSuper)), (yp*((y)-ymaxSuper))
 using namespace std;
 
 CTriangulationDlg::CTriangulationDlg(CWnd* pParent /*=nullptr*/)
@@ -48,7 +48,6 @@ BOOL CTriangulationDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Мелкий значок
 
 	srand(time(0));
-	globPts = nullptr;
 
 	PicWnd = GetDlgItem(IDC_DRAW_AREA);
 	PicDc = PicWnd->GetDC();
@@ -105,7 +104,7 @@ HCURSOR CTriangulationDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CTriangulationDlg::DrawDots(Points pt[], int num_of_pts)
+void CTriangulationDlg::DrawDots(vector<Points> pt, int num_of_pts)
 {
 	// создание контекста устройства
 	CBitmap bmp;
@@ -115,16 +114,16 @@ void CTriangulationDlg::DrawDots(Points pt[], int num_of_pts)
 
 	double window_signal_width = Pic.Width();
 	double window_signal_height = Pic.Height();
-	xp = (window_signal_width / (xmax - xmin));			//Коэффициенты пересчёта координат по Х
-	yp = -(window_signal_height / (ymax - ymin));			//Коэффициенты пересчёта координат по У
+	xp = (window_signal_width / (xmaxSuper - xminSuper));			//Коэффициенты пересчёта координат по Х
+	yp = -(window_signal_height / (ymaxSuper - yminSuper));			//Коэффициенты пересчёта координат по У
 
 	bmp.CreateCompatibleBitmap(PicDc, window_signal_width, window_signal_height);
 	CBitmap* pBmp = (CBitmap*)MemDc->SelectObject(&bmp);
 	// заливка фона графика белым цветом
 	MemDc->FillSolidRect(Pic, RGB(240, 240, 240));
 
-	double differ_x = 0.005 * xmax;
-	double differ_y = 0.005 * ymax;
+	double differ_x = 0.005 * xmaxSuper;
+	double differ_y = 0.005 * ymaxSuper;
 
 	CBrush circle(RGB(240, 240, 240));
 	MemDc->SelectObject(&dots_pen);
@@ -149,8 +148,8 @@ void CTriangulationDlg::DrawTriangulation(vector<Delone> dlnVec, int num_of_delo
 
 	double window_signal_width = Pic.Width();
 	double window_signal_height = Pic.Height();
-	xp = (window_signal_width / (xmax - xmin));			//Коэффициенты пересчёта координат по Х
-	yp = -(window_signal_height / (ymax - ymin));			//Коэффициенты пересчёта координат по У
+	xp = (window_signal_width / (xmaxSuper - xminSuper));			//Коэффициенты пересчёта координат по Х
+	yp = -(window_signal_height / (ymaxSuper - yminSuper));			//Коэффициенты пересчёта координат по У
 
 	bmp.CreateCompatibleBitmap(PicDc, window_signal_width, window_signal_height);
 	CBitmap* pBmp = (CBitmap*)MemDc->SelectObject(&bmp);
@@ -204,7 +203,7 @@ double OuterCircleRadius(Points pt1, Points pt2, Points pt3, Points& center)
 	return radiusExternal;
 }
 
-void CTriangulationDlg::Triangulation(Points pt[])
+void CTriangulationDlg::Triangulation(vector<Points> pt)
 {
 	delonePts.clear();
 	for (int i = 0; i < ptsSize; i++)
@@ -251,27 +250,42 @@ void CTriangulationDlg::Triangulation(Points pt[])
 void CTriangulationDlg::OnBnClickedBtnCalc()
 {
 	UpdateData(TRUE);
-	if (globPts != nullptr)
-	{
-		delete[] globPts;
-	}
-	globPts = new Points[ptsSize];
+	globPts.clear();
 
 	for (int i = 0; i < ptsSize; i++)
 	{
-		globPts[i].x = rand() % (int)xmax;
-		globPts[i].y = rand() % (int)ymax;
+		Points pt;
+		pt.x = (double)rand() / RAND_MAX * xmax;
+		pt.y = (double)rand() / RAND_MAX * ymax;
+		globPts.push_back(pt);
 	}
+	// точки сверхструктуры
+	Points lt, lb, rt, rb;
+	lt.x = (int)xminSuper + 0.05 * xmaxSuper;
+	lt.y = (int)yminSuper + 0.05 * ymaxSuper;
+	lb.x = (int)xminSuper + 0.05 * xmaxSuper;
+	lb.y = (int)ymaxSuper - 0.05 * ymaxSuper;
+	rt.x = (int)xmaxSuper - 0.05 * xmaxSuper;
+	rt.y = (int)yminSuper + 0.05 * ymaxSuper;
+	rb.x = (int)xmaxSuper - 0.05 * xmaxSuper;
+	rb.y = (int)ymaxSuper - 0.05 * ymaxSuper;
+	globPts.push_back(lt);
+	globPts.push_back(lb);
+	globPts.push_back(rt);
+	globPts.push_back(rb);
+	ptsSize += 4;
+
 	DrawDots(globPts, ptsSize);
 
 	Triangulation(globPts);
+
+	DrawTriangulation(delonePts, delonePts.size());
 }
 
 
 void CTriangulationDlg::OnBnClickedBtnExit()
 {
-	globPts = nullptr;
-	delete[] globPts;
+	globPts.clear();
 	delonePts.clear();
 	CTriangulationDlg::OnCancel();
 }
@@ -279,5 +293,5 @@ void CTriangulationDlg::OnBnClickedBtnExit()
 
 void CTriangulationDlg::OnBnClickedBtnTriang()
 {
-	DrawTriangulation(delonePts, delonePts.size());
+	UpdateData(TRUE);
 }

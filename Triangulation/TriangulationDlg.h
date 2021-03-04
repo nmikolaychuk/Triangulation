@@ -36,8 +36,10 @@ protected:
 
 	// draw-conversion variables
 	double xp = 0, yp = 0,
-		xmin = 0, xmax = 1000,
-		ymin = 0, ymax = 1000;
+		xmin = 0, xmax = 500,
+		ymin = 0, ymax = 500;
+	double xminSuper = -100, xmaxSuper = 600,
+		yminSuper = -100, ymaxSuper = 600;
 	double nXmin = 0, nXmax = 0,
 		nYmin = 0, nYmax = 0;
 
@@ -58,11 +60,11 @@ protected:
 public:
 	afx_msg void OnBnClickedBtnCalc();
 	afx_msg void OnBnClickedBtnExit();
-	Points* globPts;
+	std::vector<Points> globPts;
 	std::vector<Delone> delonePts;
 	int ptsSize;
-	void DrawDots(Points pt[], int num_of_pts);
+	void DrawDots(std::vector<Points> pt, int num_of_pts);
 	void DrawTriangulation(std::vector<Delone> dlnVec, int num_of_delone_pts);
-	void Triangulation(Points pt[]);
+	void Triangulation(std::vector<Points> pt);
 	afx_msg void OnBnClickedBtnTriang();
 };
