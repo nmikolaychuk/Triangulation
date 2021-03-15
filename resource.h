@@ -10,6 +10,7 @@
 #define IDC_ED_PT_SIZE                  1003
 #define IDC_BUTTON2                     1004
 #define IDC_BTN_TRIANG                  1004
+#define IDC_ED_PT_SIZE2                 1005
 
 // Next default values for new objects
 // 

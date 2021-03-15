@@ -13,6 +13,9 @@ struct Delone
 	Points A;
 	Points B;
 	Points C;
+	
+	double radius;
+	Points center;
 };
 
 // Диалоговое окно CTriangulationDlg
@@ -36,12 +39,18 @@ protected:
 
 	// draw-conversion variables
 	double xp = 0, yp = 0,
-		xmin = 0, xmax = 500,
-		ymin = 0, ymax = 500;
-	double xminSuper = -100, xmaxSuper = 600,
-		yminSuper = -100, ymaxSuper = 600;
+		xmin = 0, xmax = 10,
+		ymin = 0, ymax = 10;
+	double xminSuper = -5, xmaxSuper = 15,
+		yminSuper = -5, ymaxSuper = 15;
 	double nXmin = 0, nXmax = 0,
 		nYmin = 0, nYmax = 0;
+
+	double randMin = -xmax * 0.001;
+	double randMax = xmax * 0.001*2;
+
+	DWORD dwThread;
+	HANDLE hThread;
 
 	// draw-window
 	CWnd* PicWnd;
@@ -60,11 +69,17 @@ protected:
 public:
 	afx_msg void OnBnClickedBtnCalc();
 	afx_msg void OnBnClickedBtnExit();
-	std::vector<Points> globPts;
-	std::vector<Delone> delonePts;
+	
+	std::vector<Points> global_points;
+	std::vector<Delone> global_triangles;
+	
 	int ptsSize;
-	void DrawDots(std::vector<Points> pt, int num_of_pts);
-	void DrawTriangulation(std::vector<Delone> dlnVec, int num_of_delone_pts);
-	void Triangulation(std::vector<Points> pt);
+	double stepKoef;
+	void Animation();
+	void DrawTriangulation(std::vector<Points> pts, std::vector<Delone> dln);
+	void Triangulation(std::vector<Points> pt, std::vector<Delone>& dln);
+	void RecurrentTriangulation(std::vector<Points> vec, std::vector<Delone>& pts);
+	void drawArea(std::vector<Points>& vec, bool mode);
+	void drawSuperstructure(std::vector<Points>& vec);
 	afx_msg void OnBnClickedBtnTriang();
 };
