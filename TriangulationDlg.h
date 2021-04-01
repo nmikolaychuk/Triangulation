@@ -80,7 +80,6 @@ public:
 	void RecurrentTriangulation(std::vector<Points> vec, std::vector<Delone>& pts);
 	void drawGrid(std::vector<Points>& vec, double rad_out, double rad_in, double cut_wdth, Points center);
 	void drawSuperstructure(std::vector<Points>& vec);
-	int IsPointInsidePolygon(std::vector<Points> p, int Number, double x, double y);
 	void deleteSuperDots(std::vector<Delone>& dln);
 	void drawMagnet(std::vector<Points>& vec, Points center, double radius_inner,
 		double radius_outer, double cut_width,

@@ -6,6 +6,7 @@
 #include "afxdialogex.h"
 #include <cstdlib>
 #include <ctime>
+#include <algorithm>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -233,57 +234,21 @@ void CTriangulationDlg::Triangulation(vector<Points> pt, vector<Delone>& dln)
 	}
 }
 
-int CTriangulationDlg::IsPointInsidePolygon(vector<Points> p, int Number, double x, double y)
+bool pnpoly(int size, vector<Points> pts, double x, double y)
 {
-	int i1, i2, n, N, flag;
-	double S, S1, S2, S3;
-	N = Number;
-	for (n = 0; n < N; n++)
+	bool c = false;
+	for (int i = 0, j = size - 1; i < size; j = i++)
 	{
-		flag = 0;
-		i1 = n < N - 1 ? n + 1 : 0;
-		while (flag == 0)
-		{
-			i2 = i1 + 1;
-			if (i2 >= N)
-			{
-				i2 = 0;
-			}
-			if (i2 == (n < N - 1 ? n + 1 : 0))
-			{
-				break;
-			}
-			S = fabs(p[i1].x * (p[i2].y - p[n].y) +
-						p[i2].x * (p[n].y - p[i1].y) +
-						p[n].x * (p[i1].y - p[i2].y));
-			S1 = fabs(p[i1].x * (p[i2].y - y) +
-						p[i2].x * (y - p[i1].y) +
-						x * (p[i1].y - p[i2].y));
-			S2 = fabs(p[n].x * (p[i2].y - y) +
-						p[i2].x * (y - p[n].y) +
-						x * (p[n].y - p[i2].y));
-			S3 = fabs(p[i1].x * (p[n].y - y) +
-						p[n].x * (y - p[i1].y) +
-						x * (p[i1].y - p[n].y));
-			if (S == S1 + S2 + S3)
-			{
-				flag = 1;
-				break;
-			}
-			i1 = i1 + 1;
-			if (i1 >= N)
-			{
-				i1 = 0;
-				break;
-			}
-		}
-
-		if (flag == 0)
-		{
-			break;
-		}
+		if ((
+			(pts[i].y < pts[j].y) && (pts[i].y <= y) && (y <= pts[j].y) &&
+			((pts[j].y - pts[i].y) * (x - pts[i].x) > (pts[j].x - pts[i].x) * (y - pts[i].y))
+			) || (
+				(pts[i].y > pts[j].y) && (pts[j].y <= y) && (y <= pts[i].y) &&
+				((pts[j].y - pts[i].y) * (x - pts[i].x) < (pts[j].x - pts[i].x) * (y - pts[i].y))
+				))
+			c = !c;
 	}
-	return flag;
+	return c;
 }
 
 void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double radius_inner,
@@ -473,46 +438,24 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 	}
 	double phi_bot = 360 - (atan2((center.y - bottom_out.y), (bottom_out.x - center.x)) * 180) / pi;
 
-	// Линия между радиусами
-	for (double j = 0.25 * stepKoef; j < side_top; j += 0.25 * stepKoef)
+	// Линия между радиусами (верхняя точка)
+	if (cut_angle > 0 || angle_north > 0)
 	{
-		rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
-		rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
-
-		Points dot_border_top, dot_border_bottom;
-		dot_border_top.x = j * cos((pi * angle_north) / 180) + top_in.x + rand_x;
-		dot_border_top.y = j * sin((pi * angle_north) / 180) + top_in.y + rand_y;
-		polygon.push_back(dot_border_top);
-		vec.push_back(dot_border_top);
-	}
-
-	for (double j = 0.25 * stepKoef; j < side_bot; j += 0.25 * stepKoef)
-	{
-		rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
-		rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
-
-		Points dot_border_bottom;
-		dot_border_bottom.x = j * cos((pi * (360 - angle_south)) / 180) + bottom_in.x + rand_x;
-		dot_border_bottom.y = j * sin((pi * (360 - angle_south)) / 180) + bottom_in.y + rand_y;
-		polygon.push_back(dot_border_bottom);
-		vec.push_back(dot_border_bottom);
-	}
-
-	for (double i = 0; i < 360; i += stepKoef)
-	{
-		// Построение внутренней окружности
-		if ((i >= cut_angle / 2.) && (i <= (360 - cut_angle / 2.)))
+		for (double j = 0.25 * stepKoef; j < side_top; j += 0.25 * stepKoef)
 		{
 			rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
 			rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
 
-			Points dot_inner;
-			dot_inner.x = radius_inner * cos((pi * i) / 180) + center.x + rand_x;
-			dot_inner.y = radius_inner * sin((pi * i) / 180) + center.y + rand_y;
-			polygon.push_back(dot_inner);
-			vec.push_back(dot_inner);
+			Points dot_border_top, dot_border_bottom;
+			dot_border_top.x = j * cos((pi * angle_north) / 180) + top_in.x + rand_x;
+			dot_border_top.y = j * sin((pi * angle_north) / 180) + top_in.y + rand_y;
+			polygon.push_back(dot_border_top);
+			vec.push_back(dot_border_top);
 		}
+	}
 
+	for (double i = 0; i < 360; i += stepKoef)
+	{
 		// Построение внешней окружности
 		if ((i > phi_top) && (i < phi_bot))
 		{
@@ -525,7 +468,7 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 			vec.push_back(dot_outer);
 		}
 
-		if ((int)(i / stepKoef) % 3 == 0 && ((i >= phi_top + stepKoef) && (i <= phi_bot - stepKoef)))
+		if ((int)(i / stepKoef) % 4 == 0 && ((i >= phi_top + stepKoef) && (i <= phi_bot - stepKoef)))
 		{
 			rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
 			rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
@@ -538,6 +481,53 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 			vec.push_back(dot_super);
 		}
 	}
+
+	// Линия между радиусами (нижняя точка)
+	vector<Points> buf;
+	if (cut_angle > 0 || angle_south > 0)
+	{
+		for (double j = 0.25 * stepKoef; j < side_bot; j += 0.25 * stepKoef)
+		{
+			rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
+			rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
+
+			Points dot_border_bottom;
+			dot_border_bottom.x = j * cos((pi * (360 - angle_south)) / 180) + bottom_in.x + rand_x;
+			dot_border_bottom.y = j * sin((pi * (360 - angle_south)) / 180) + bottom_in.y + rand_y;
+			buf.push_back(dot_border_bottom);
+			vec.push_back(dot_border_bottom);
+		}
+	}
+	reverse(buf.begin(), buf.end());
+	
+	for (int i = 0; i < buf.size(); i++)
+	{
+		polygon.push_back(buf[i]);
+	}
+	buf.clear();
+
+	for (double i = 0; i < 360; i += stepKoef)
+	{
+		// Построение внутренней окружности
+		if ((i >= cut_angle / 2.) && (i <= (360 - cut_angle / 2.)))
+		{
+			rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
+			rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
+
+			Points dot_inner;
+			dot_inner.x = radius_inner * cos((pi * i) / 180) + center.x + rand_x;
+			dot_inner.y = radius_inner * sin((pi * i) / 180) + center.y + rand_y;
+			buf.push_back(dot_inner);
+			vec.push_back(dot_inner);
+		}
+	}
+	reverse(buf.begin(), buf.end());
+
+	for (int i = 0; i < buf.size(); i++)
+	{
+		polygon.push_back(buf[i]);
+	}
+	buf.clear();
 }
 
 void CTriangulationDlg::drawRectangle(vector<Points>& vec)
@@ -588,12 +578,12 @@ void CTriangulationDlg::drawGrid(vector<Points>& vec, double rad_out,
 	{
 		for (double j = ymin; j <= ymax; j += stepKoef)
 		{
-			if (i != xmin && i != xmax || j != ymin && j != ymax)
+			if ((i != xmin && i != xmax) || (j != ymin && j != ymax))
 			{
 				if (!polygon.empty())
 				{
-					int is_inside = IsPointInsidePolygon(polygon, polygon.size(), i, j);
-					if (is_inside == 0)
+					bool is_inside = pnpoly(polygon.size(), polygon, i, j);
+					if (!is_inside)
 					{
 						rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
 						rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
@@ -704,7 +694,6 @@ void CTriangulationDlg::OnBnClickedBtnCalc()
 	vector<Delone> triangles;
 
 	drawSuperstructure(points);
-	//drawArea(points, true);
 	drawRectangle(points);
 	Points center;
 	center.x = centerMagnetX;
