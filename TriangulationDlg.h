@@ -6,6 +6,7 @@ struct Points
 {
 	double x;
 	double y;
+	bool is_super_dot = false;
 };
 
 struct Delone
@@ -38,16 +39,15 @@ protected:
 	HICON m_hIcon;
 
 	// draw-conversion variables
-	double xp = 0, yp = 0,
-		xmin = 0, xmax = 10,
-		ymin = 0, ymax = 10;
-	double xminSuper = -5, xmaxSuper = 15,
-		yminSuper = -5, ymaxSuper = 15;
+	double xp = 0, yp = 0;
+	double xminSuper = 0, xmaxSuper = 100,
+		yminSuper = 0, ymaxSuper = 100;
 	double nXmin = 0, nXmax = 0,
 		nYmin = 0, nYmax = 0;
+	double pi = 3.1415926535;
 
-	double randMin = -xmax * 0.001;
-	double randMax = xmax * 0.001*2;
+	double randMin;
+	double randMax;
 
 	DWORD dwThread;
 	HANDLE hThread;
@@ -72,14 +72,31 @@ public:
 	
 	std::vector<Points> global_points;
 	std::vector<Delone> global_triangles;
+	std::vector<Points> polygon;
 	
-	int ptsSize;
 	double stepKoef;
-	void Animation();
 	void DrawTriangulation(std::vector<Points> pts, std::vector<Delone> dln);
 	void Triangulation(std::vector<Points> pt, std::vector<Delone>& dln);
 	void RecurrentTriangulation(std::vector<Points> vec, std::vector<Delone>& pts);
-	void drawArea(std::vector<Points>& vec, bool mode);
+	void drawGrid(std::vector<Points>& vec, double rad_out, double rad_in, double cut_wdth, Points center);
 	void drawSuperstructure(std::vector<Points>& vec);
+	int IsPointInsidePolygon(std::vector<Points> p, int Number, double x, double y);
+	void deleteSuperDots(std::vector<Delone>& dln);
+	void drawMagnet(std::vector<Points>& vec, Points center, double radius_inner,
+		double radius_outer, double cut_width,
+		double angle_north, double angle_south);
+	void drawRectangle(std::vector<Points>& vec);
 	afx_msg void OnBnClickedBtnTriang();
+	double xmin;
+	double xmax;
+	double ymin;
+	double ymax;
+	afx_msg void OnBnClickedBtnDeleteSuper();
+	double centerMagnetX;
+	double centerMagnetY;
+	double magnet_inner_radius;
+	double magnet_outer_radius;
+	double magnet_cut_width;
+	double magnet_angle_north;
+	double magnet_angle_south;
 };
