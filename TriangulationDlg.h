@@ -81,6 +81,7 @@ public:
 	void drawGrid(std::vector<Points>& vec, double rad_out, double rad_in, double cut_wdth, Points center);
 	void drawSuperstructure(std::vector<Points>& vec);
 	void deleteSuperDots(std::vector<Delone>& dln);
+	void deleteFromMagnet(std::vector<Delone>& dln);
 	void drawMagnet(std::vector<Points>& vec, Points center, double radius_inner,
 		double radius_outer, double cut_width,
 		double angle_north, double angle_south);

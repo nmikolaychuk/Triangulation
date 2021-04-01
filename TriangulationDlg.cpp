@@ -468,7 +468,7 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 			vec.push_back(dot_outer);
 		}
 
-		if ((int)(i / stepKoef) % 4 == 0 && ((i >= phi_top + stepKoef) && (i <= phi_bot - stepKoef)))
+		/*if ((int)(i / stepKoef) % 4 == 0 && ((i >= phi_top + stepKoef) && (i <= phi_bot - stepKoef)))
 		{
 			rand_x = randMin + ((double)rand() / RAND_MAX) * randMax;
 			rand_y = randMin + ((double)rand() / RAND_MAX) * randMax;
@@ -479,7 +479,7 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 			dot_super.y = radius * sin((pi * i) / 180) + center.y + rand_y;
 			dot_super.is_super_dot = true;
 			vec.push_back(dot_super);
-		}
+		}*/
 	}
 
 	// Линия между радиусами (нижняя точка)
@@ -634,6 +634,34 @@ void CTriangulationDlg::deleteSuperDots(vector<Delone>& dln)
 	}
 }
 
+void CTriangulationDlg::deleteFromMagnet(vector<Delone>& dln)
+{
+	if (!polygon.empty())
+	{
+		for (int i = 0; i < dln.size(); i++)
+		{
+			Points middleAB, middleBC, middleAC;
+			middleAB.x = (dln[i].A.x + dln[i].B.x) / 2.;
+			middleAB.y = (dln[i].A.y + dln[i].B.y) / 2.;
+
+			middleBC.x = (dln[i].B.x + dln[i].C.x) / 2.;
+			middleBC.y = (dln[i].B.y + dln[i].C.y) / 2.;
+
+			middleAC.x = (dln[i].A.x + dln[i].C.x) / 2.;
+			middleAC.y = (dln[i].A.y + dln[i].C.y) / 2.;
+
+			bool is_insideAB = pnpoly(polygon.size(), polygon, middleAB.x, middleAB.y);
+			bool is_insideBC = pnpoly(polygon.size(), polygon, middleBC.x, middleBC.y);
+			bool is_insideAC = pnpoly(polygon.size(), polygon, middleAC.x, middleAC.y);
+			if (is_insideAB || is_insideBC || is_insideAC)
+			{
+				dln.erase(dln.begin() + i);
+				i--;
+			}
+		}
+	}
+}
+
 void CTriangulationDlg::RecurrentTriangulation(vector<Points> vec, vector<Delone>& dln)
 {
 	vector<Points> deletedPts;
@@ -761,5 +789,6 @@ void CTriangulationDlg::OnBnClickedBtnDeleteSuper()
 	}
 
 	deleteSuperDots(dln);
+	deleteFromMagnet(dln);
 	DrawTriangulation(pts, dln);
 }
