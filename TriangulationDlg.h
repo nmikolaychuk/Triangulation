@@ -7,6 +7,11 @@ struct Points
 	double x;
 	double y;
 	bool is_super_dot = false;
+	bool is_rect_border = false;
+	bool is_magnet_border_north = false;
+	bool is_magnet_border_south = false;
+
+	double potential = 0.0;
 };
 
 struct Delone
@@ -65,13 +70,12 @@ protected:
 	virtual BOOL OnInitDialog();
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
-	DECLARE_MESSAGE_MAP()
-public:
 	afx_msg void OnBnClickedBtnCalc();
 	afx_msg void OnBnClickedBtnExit();
+	DECLARE_MESSAGE_MAP()
+public:
 	
-	std::vector<Points> global_points;
-	std::vector<Delone> global_triangles;
+	std::vector<Points> polygon_hitbox;
 	std::vector<Points> polygon;
 	
 	double stepKoef;
@@ -81,17 +85,16 @@ public:
 	void drawGrid(std::vector<Points>& vec, double rad_out, double rad_in, double cut_wdth, Points center);
 	void drawSuperstructure(std::vector<Points>& vec);
 	void deleteSuperDots(std::vector<Delone>& dln);
-	void deleteFromMagnet(std::vector<Delone>& dln);
+	void deleteFromMagnet(std::vector<Delone>& dln, std::vector<Points> polygon);
 	void drawMagnet(std::vector<Points>& vec, Points center, double radius_inner,
 		double radius_outer, double cut_width,
-		double angle_north, double angle_south);
+		double angle_north, double angle_south,
+		std::vector<Points>& polygon, bool is_hitbox=false);
 	void drawRectangle(std::vector<Points>& vec);
-	afx_msg void OnBnClickedBtnTriang();
 	double xmin;
 	double xmax;
 	double ymin;
 	double ymax;
-	afx_msg void OnBnClickedBtnDeleteSuper();
 	double centerMagnetX;
 	double centerMagnetY;
 	double magnet_inner_radius;
@@ -99,4 +102,7 @@ public:
 	double magnet_cut_width;
 	double magnet_angle_north;
 	double magnet_angle_south;
+	double potentialRect;
+	double potentialMagnet;
+	CButton graphPotentialValues;
 };

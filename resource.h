@@ -15,15 +15,17 @@
 #define IDC_RECT_XMAX                   1007
 #define IDC_RECT_YMIN                   1008
 #define IDC_RECT_YMAX                   1009
-#define IDC_BTN_DELETE_SUPER            1010
 #define IDC_MAGN_CENTER_X               1011
 #define IDC_MAGN_CENTER_Y               1012
 #define IDC_MAGNET_RADIUS_INNER         1013
 #define IDC_MAGNET_RADIUS_OUTER         1014
 #define IDC_MAGNET_CUT_WIDTH            1015
 #define IDC_MAGNET_ANGLE_NORTH          1016
-#define IDC_MAGNET_ANGLE_NORTH2         1017
 #define IDC_MAGNET_ANGLE_SOUTH          1017
+#define IDC_POTENTIAL_RECT              1018
+#define IDC_POTENTIAL_MAGNET            1019
+#define IDC_CHECK1                      1020
+#define IDC_CHECK_GRAPH_POTENTIAL       1020
 
 // Next default values for new objects
 // 
@@ -31,7 +33,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1012
+#define _APS_NEXT_CONTROL_VALUE         1021
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
