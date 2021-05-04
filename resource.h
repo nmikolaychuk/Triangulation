@@ -24,8 +24,9 @@
 #define IDC_MAGNET_ANGLE_SOUTH          1017
 #define IDC_POTENTIAL_RECT              1018
 #define IDC_POTENTIAL_MAGNET            1019
-#define IDC_CHECK1                      1020
 #define IDC_CHECK_GRAPH_POTENTIAL       1020
+#define IDC_CHECK_GRAPH_EQUIPOTENTIAL   1021
+#define IDC_CHECK_GRAPH_POWER           1022
 
 // Next default values for new objects
 // 

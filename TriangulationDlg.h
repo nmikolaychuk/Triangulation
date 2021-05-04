@@ -6,6 +6,8 @@ struct Points
 {
 	double x;
 	double y;
+	double z = 0.0;
+
 	bool is_super_dot = false;
 	bool is_rect_border = false;
 	bool is_magnet_border_north = false;
@@ -75,22 +77,14 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	
+	// Глобальные вектора для магнита и его boundingbox
 	std::vector<Points> polygon_hitbox;
 	std::vector<Points> polygon;
+	std::vector<Points> gl_points;
+	std::vector<Delone> gl_triangles;
 	
+	// Переменные, связанные с кнопками
 	double stepKoef;
-	void DrawTriangulation(std::vector<Points> pts, std::vector<Delone> dln);
-	void Triangulation(std::vector<Points> pt, std::vector<Delone>& dln);
-	void RecurrentTriangulation(std::vector<Points> vec, std::vector<Delone>& pts);
-	void drawGrid(std::vector<Points>& vec, double rad_out, double rad_in, double cut_wdth, Points center);
-	void drawSuperstructure(std::vector<Points>& vec);
-	void deleteSuperDots(std::vector<Delone>& dln);
-	void deleteFromMagnet(std::vector<Delone>& dln, std::vector<Points> polygon);
-	void drawMagnet(std::vector<Points>& vec, Points center, double radius_inner,
-		double radius_outer, double cut_width,
-		double angle_north, double angle_south,
-		std::vector<Points>& polygon, bool is_hitbox=false);
-	void drawRectangle(std::vector<Points>& vec);
 	double xmin;
 	double xmax;
 	double ymin;
@@ -105,4 +99,35 @@ public:
 	double potentialRect;
 	double potentialMagnet;
 	CButton graphPotentialValues;
+	CButton graphEquipotential;
+	CButton graphPower;
+
+	// Методы
+	void DrawTriangulation(std::vector<Points> pts, std::vector<Delone> dln,
+		std::vector<std::vector<Points>> equipot, std::vector<std::vector<Points>> power);
+	void Triangulation(std::vector<Points> pt, std::vector<Delone>& dln);
+	void RecurrentTriangulation(std::vector<Points> vec, std::vector<Delone>& pts);
+	void drawGrid(std::vector<Points>& vec, double rad_out, double rad_in, double cut_wdth, Points center);
+	void drawSuperstructure(std::vector<Points>& vec);
+	void deleteSuperDots(std::vector<Delone>& dln);
+	void deleteFromMagnet(std::vector<Delone>& dln, std::vector<Points> polygon);
+	void drawMagnet(std::vector<Points>& vec, Points center, double radius_inner,
+		double radius_outer, double cut_width,
+		double angle_north, double angle_south,
+		std::vector<Points>& polygon, bool is_hitbox=false);
+	void drawRectangle(std::vector<Points>& vec);
+	std::vector<double> calcAij(std::vector<Points> pts, std::vector<Delone> dln);
+	std::vector<double> calcBj(std::vector<Points> pts, std::vector<Points> pts_not_border, std::vector<Delone> dln);
+	std::vector<Points> notBorderDots(std::vector<Points> pts);
+	std::vector<Points> borderDots(std::vector<Points> pts);
+	std::vector<Delone> isDotsNeighbours(Points pt, std::vector<Delone> dln);
+	void calcABForTriang(double& A, double& B, Delone triang);
+	std::vector<Delone> isIJNeighbours(Points i, Points j, std::vector<Delone> dln);
+	Delone replaceZInTriangle(Points pt, Delone triang, double z_value);
+	void deleteFromPoints(std::vector<Delone> dln, std::vector<Points>& pts);
+	std::vector<std::vector<Points>> equipotentialLines(std::vector<Delone> dln);
+	std::vector<std::vector<Points>> powerLine(std::vector<Points> pts, std::vector<Delone> dln);
+	afx_msg void OnBnClickedCheckGraphPotential();
+	afx_msg void OnBnClickedCheckGraphEquipotential();
+	afx_msg void OnBnClickedCheckGraphPower();
 };

@@ -8,6 +8,9 @@
 #include <ctime>
 #include <algorithm>
 #include <string>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -18,16 +21,16 @@ using namespace std;
 
 CTriangulationDlg::CTriangulationDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_TRIANGULATION_DIALOG, pParent)
-	, stepKoef(3)
-	, xmin(20)
-	, xmax(80)
-	, ymin(20)
-	, ymax(80)
+	, stepKoef(4)
+	, xmin(10)
+	, xmax(90)
+	, ymin(10)
+	, ymax(90)
 	, centerMagnetX(50)
 	, centerMagnetY(50)
-	, magnet_inner_radius(10)
-	, magnet_outer_radius(20)
-	, magnet_cut_width(15)
+	, magnet_inner_radius(16)
+	, magnet_outer_radius(22)
+	, magnet_cut_width(45)
 	, magnet_angle_north(90)
 	, magnet_angle_south(90)
 	, potentialRect(0)
@@ -54,6 +57,8 @@ void CTriangulationDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_POTENTIAL_RECT, potentialRect);
 	DDX_Text(pDX, IDC_POTENTIAL_MAGNET, potentialMagnet);
 	DDX_Control(pDX, IDC_CHECK_GRAPH_POTENTIAL, graphPotentialValues);
+	DDX_Control(pDX, IDC_CHECK_GRAPH_EQUIPOTENTIAL, graphEquipotential);
+	DDX_Control(pDX, IDC_CHECK_GRAPH_POWER, graphPower);
 }
 
 BEGIN_MESSAGE_MAP(CTriangulationDlg, CDialogEx)
@@ -61,6 +66,9 @@ BEGIN_MESSAGE_MAP(CTriangulationDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BTN_CALC, &CTriangulationDlg::OnBnClickedBtnCalc)
 	ON_BN_CLICKED(IDC_BTN_EXIT, &CTriangulationDlg::OnBnClickedBtnExit)
+	ON_BN_CLICKED(IDC_CHECK_GRAPH_POTENTIAL, &CTriangulationDlg::OnBnClickedCheckGraphPotential)
+	ON_BN_CLICKED(IDC_CHECK_GRAPH_EQUIPOTENTIAL, &CTriangulationDlg::OnBnClickedCheckGraphEquipotential)
+	ON_BN_CLICKED(IDC_CHECK_GRAPH_POWER, &CTriangulationDlg::OnBnClickedCheckGraphPower)
 END_MESSAGE_MAP()
 
 
@@ -137,7 +145,8 @@ HCURSOR CTriangulationDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CTriangulationDlg::DrawTriangulation(vector<Points> pts, vector<Delone> dln)
+void CTriangulationDlg::DrawTriangulation(vector<Points> pts, vector<Delone> dln,
+	vector<vector<Points>> equipot, vector<vector<Points>> power)
 {
 	// создание контекста устройства
 	CBitmap bmp;
@@ -175,9 +184,9 @@ void CTriangulationDlg::DrawTriangulation(vector<Points> pts, vector<Delone> dln
 		{
 			CPen circle_pen;
 			circle_pen.CreatePen(
-								PS_SOLID,
-								-1,
-								RGB(250, 170, 0));
+				PS_SOLID,
+				-1,
+				RGB(250, 170, 0));
 
 			CBrush circle_brush(RGB(250, 200, 0));
 			MemDc->SelectObject(&circle_pen);
@@ -187,13 +196,14 @@ void CTriangulationDlg::DrawTriangulation(vector<Points> pts, vector<Delone> dln
 			if (graphPotentialValues.GetCheck() == BST_CHECKED)
 			{
 				CString str;
-				str.Format(_T("%.0f"), pts[i].potential);
+				str.Format(_T("%.1f"), pts[i].potential);
+				MemDc->SetBkMode(0);
 				MemDc->TextOutW(DOTS(pts[i].x - differ_x, pts[i].y - differ_y), str);
 			}
 		}
 
 		// Граничные точки magnet-области (south)
-		else if (pts[i].is_magnet_border_south)
+		if (pts[i].is_magnet_border_south)
 		{
 			CPen circle_pen;
 			circle_pen.CreatePen(
@@ -209,13 +219,14 @@ void CTriangulationDlg::DrawTriangulation(vector<Points> pts, vector<Delone> dln
 			if (graphPotentialValues.GetCheck() == BST_CHECKED && i % 5 == 0)
 			{
 				CString str;
-				str.Format(_T("%.0f"), pts[i].potential);
+				str.Format(_T("%.1f"), pts[i].potential);
+				MemDc->SetBkMode(0);
 				MemDc->TextOutW(DOTS(pts[i].x - differ_x, pts[i].y - differ_y), str);
 			}
 		}
 
 		// Граничные точки magnet-области (north)
-		else if (pts[i].is_magnet_border_north)
+		if (pts[i].is_magnet_border_north)
 		{
 			CPen circle_pen;
 			circle_pen.CreatePen(
@@ -231,21 +242,24 @@ void CTriangulationDlg::DrawTriangulation(vector<Points> pts, vector<Delone> dln
 			if (graphPotentialValues.GetCheck() == BST_CHECKED && i % 5 == 0)
 			{
 				CString str;
-				str.Format(_T("%.0f"), pts[i].potential);
+				str.Format(_T("%.1f"), pts[i].potential);
+				MemDc->SetBkMode(0);
 				MemDc->TextOutW(DOTS(pts[i].x - differ_x, pts[i].y - differ_y), str);
 			}
 		}
 
 		// Остальные точки
-		else
+		if (!pts[i].is_magnet_border_north
+			&& !pts[i].is_magnet_border_south
+			&& !pts[i].is_rect_border)
 		{
 			CPen circle_pen;
 			circle_pen.CreatePen(
 				PS_SOLID,
 				-1,
-				RGB(0, 0, 0));
+				RGB(100, 134, 95));
 
-			CBrush circle_brush(RGB(0, 0, 0));
+			CBrush circle_brush(RGB(100, 134, 95));
 			MemDc->SelectObject(&circle_pen);
 			MemDc->SelectObject(&circle_brush);
 			MemDc->Ellipse(DOTS(pts[i].x - differ_x, pts[i].y - differ_y), DOTS(pts[i].x + differ_x, pts[i].y + differ_y));
@@ -253,8 +267,53 @@ void CTriangulationDlg::DrawTriangulation(vector<Points> pts, vector<Delone> dln
 			if (graphPotentialValues.GetCheck() == BST_CHECKED)
 			{
 				CString str;
-				str.Format(_T("%.0f"), pts[i].potential);
+				str.Format(_T("%.1f"), pts[i].potential);
+				MemDc->SetBkMode(0);
 				MemDc->TextOutW(DOTS(pts[i].x - differ_x, pts[i].y - differ_y), str);
+			}
+		}
+	}
+
+	if (!equipot.empty())
+	{
+		for (int i = 0; i < equipot.size(); i++)
+		{
+			CPen circle_pen;
+			circle_pen.CreatePen(
+				PS_SOLID,
+				2,
+				RGB(20, 20, 120));
+
+			CBrush circle_brush(RGB(20, 20, 120));
+			MemDc->SelectObject(&circle_pen);
+			MemDc->SelectObject(&circle_brush);
+
+			MemDc->MoveTo(DOTS(equipot[i][0].x, equipot[i][0].y));
+			for (int j = 0; j < equipot[i].size(); j++)
+			{
+				MemDc->LineTo(DOTS(equipot[i][j].x, equipot[i][j].y));
+			}
+		}
+	}
+
+	if (!power.empty())
+	{
+		for (int i = 0; i < power.size(); i++)
+		{
+			CPen circle_pen;
+			circle_pen.CreatePen(
+				PS_SOLID,
+				2,
+				RGB(120, 20, 20));
+
+			CBrush circle_brush(RGB(120, 20, 20));
+			MemDc->SelectObject(&circle_pen);
+			MemDc->SelectObject(&circle_brush);
+
+			MemDc->MoveTo(DOTS(power[i][0].x, power[i][0].y));
+			for (int j = 0; j < power[i].size(); j++)
+			{
+				MemDc->LineTo(DOTS(power[i][j].x, power[i][j].y));
 			}
 		}
 	}
@@ -348,7 +407,7 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 	double cut_angle = (180 * cut_width) / (pi * radius_inner);
 	double rand_x, rand_y;
 
-	double magnet_contour_step = stepKoef;
+	double magnet_contour_step = stepKoef * 2.5;
 
 	Points top_in, top_out, bottom_in, bottom_out;
 
@@ -561,7 +620,7 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 			Points dot_outer;
 			dot_outer.x = radius_outer * cos((pi * i) / 180) + center.x + rand_x;
 			dot_outer.y = radius_outer * sin((pi * i) / 180) + center.y + rand_y;
-			
+
 			if (i < 180)
 			{
 				dot_outer.is_magnet_border_south = true;
@@ -595,7 +654,7 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 			dot_border_bottom.y = j * sin((pi * (360 - angle_south)) / 180) + bottom_in.y + rand_y;
 			dot_border_bottom.is_magnet_border_north = true;
 			dot_border_bottom.potential = -potentialMagnet;
-			
+
 			buf.push_back(dot_border_bottom);
 			if (!is_hitbox)
 			{
@@ -633,7 +692,7 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 				dot_inner.is_magnet_border_north = true;
 				dot_inner.potential = -potentialMagnet;
 			}
-			
+
 			buf.push_back(dot_inner);
 			if (!is_hitbox)
 			{
@@ -647,7 +706,6 @@ void CTriangulationDlg::drawMagnet(vector<Points>& vec, Points center, double ra
 	{
 		polygon.push_back(buf[i]);
 	}
-	
 
 	buf.clear();
 }
@@ -754,19 +812,19 @@ void CTriangulationDlg::drawSuperstructure(vector<Points>& vec)
 	// точки сверхструктуры
 	Points lt, lb, rt, rb;
 	double ratio = 0.01;
-	
+
 	lt.x = xminSuper + ratio * xmaxSuper;
 	lt.y = yminSuper + ratio * ymaxSuper;
 	lt.is_super_dot = true;
-	
+
 	lb.x = xminSuper + ratio * xmaxSuper;
 	lb.y = ymaxSuper - ratio * ymaxSuper;
 	lb.is_super_dot = true;
-	
+
 	rt.x = xmaxSuper - ratio * xmaxSuper;
 	rt.y = yminSuper + ratio * ymaxSuper;
 	rt.is_super_dot = true;
-	
+
 	rb.x = xmaxSuper - ratio * xmaxSuper;
 	rb.y = ymaxSuper - ratio * ymaxSuper;
 	rb.is_super_dot = true;
@@ -866,9 +924,9 @@ void CTriangulationDlg::RecurrentTriangulation(vector<Points> vec, vector<Delone
 
 	for (int i = 0; i < deletedTriag.size(); i++)
 	{
-		if (deletedTriag[i].A.x == vec.back().x && deletedTriag[i].A.y == vec.back().y
-			|| deletedTriag[i].B.x == vec.back().x && deletedTriag[i].B.y == vec.back().y
-			|| deletedTriag[i].C.x == vec.back().x && deletedTriag[i].C.y == vec.back().y)
+		if ((deletedTriag[i].A.x == vec.back().x && deletedTriag[i].A.y == vec.back().y)
+			|| (deletedTriag[i].B.x == vec.back().x && deletedTriag[i].B.y == vec.back().y)
+			|| (deletedTriag[i].C.x == vec.back().x && deletedTriag[i].C.y == vec.back().y))
 		{
 			dln.push_back(deletedTriag[i]);
 		}
@@ -876,6 +934,718 @@ void CTriangulationDlg::RecurrentTriangulation(vector<Points> vec, vector<Delone
 
 	deletedTriag.clear();
 	deletedPts.clear();
+}
+
+vector<Points> CTriangulationDlg::notBorderDots(vector<Points> pts)
+{
+	vector<Points> notBorder;
+	for (int i = 0; i < pts.size(); i++)
+	{
+		// Условие, что i-ая точка - не граничная
+		if (!pts[i].is_magnet_border_north && !pts[i].is_magnet_border_south && !pts[i].is_rect_border)
+		{
+			notBorder.push_back(pts[i]);
+		}
+	}
+	return notBorder;
+}
+
+vector<Points> CTriangulationDlg::borderDots(vector<Points> pts)
+{
+	vector<Points> border;
+	for (int i = 0; i < pts.size(); i++)
+	{
+		// Условие, что i-ая точка - граничная
+		if (pts[i].is_magnet_border_north || pts[i].is_magnet_border_south || pts[i].is_rect_border)
+		{
+			border.push_back(pts[i]);
+		}
+	}
+	return border;
+}
+
+vector<Delone> CTriangulationDlg::isDotsNeighbours(Points pt, vector<Delone> dln)
+{
+	double eps = 1e-6;
+	vector<Delone> neighbours;
+
+	// Запоминаем все треугольники, в которые входит заданная точка
+	for (int i = 0; i < dln.size(); i++)
+	{
+		if (abs(dln[i].A.x - pt.x) <= eps && abs(dln[i].A.y - pt.y) <= eps
+			&& !dln[i].B.is_magnet_border_north && !dln[i].B.is_magnet_border_south
+			&& !dln[i].B.is_rect_border)
+		{
+			neighbours.push_back(dln[i]);
+		}
+
+		if (abs(dln[i].B.x - pt.x) <= eps && abs(dln[i].B.y - pt.y) <= eps
+			&& !dln[i].B.is_magnet_border_north && !dln[i].B.is_magnet_border_south
+			&& !dln[i].B.is_rect_border)
+		{
+			neighbours.push_back(dln[i]);
+		}
+
+		if (abs(dln[i].C.x - pt.x) <= eps && abs(dln[i].C.y - pt.y) <= eps
+			&& !dln[i].B.is_magnet_border_north && !dln[i].B.is_magnet_border_south
+			&& !dln[i].B.is_rect_border)
+		{
+			neighbours.push_back(dln[i]);
+		}
+	}
+	return neighbours;
+}
+
+vector<Delone> CTriangulationDlg::isIJNeighbours(Points i, Points j, vector<Delone> dln)
+{
+	vector<Delone> neigh_i = isDotsNeighbours(i, dln);
+
+	if (!neigh_i.empty())
+	{
+		vector<Delone> neigh_ij_triangles;
+		for (int c = 0; c < neigh_i.size(); c++)
+		{
+			if ((neigh_i[c].A.x == j.x && neigh_i[c].A.y == j.y)
+				|| (neigh_i[c].B.x == j.x && neigh_i[c].B.y == j.y)
+				|| (neigh_i[c].C.x == j.x && neigh_i[c].C.y == j.y))
+			{
+				neigh_ij_triangles.push_back(neigh_i[c]);
+			}
+		}
+		return neigh_ij_triangles;
+	}
+}
+
+void CTriangulationDlg::calcABForTriang(double& A, double& B, Delone triang)
+{
+	A = triang.A.y * (triang.B.z - triang.C.z) + triang.B.y * (triang.C.z - triang.A.z) + triang.C.y * (triang.A.z - triang.B.z);
+	B = triang.A.z * (triang.B.x - triang.C.x) + triang.B.z * (triang.C.x - triang.A.x) + triang.C.z * (triang.A.x - triang.B.x);
+
+	/*A = (triang.B.y - triang.A.y) * (triang.C.z - triang.A.z) - (triang.C.y - triang.A.y) * (triang.B.z - triang.A.z);
+	B = (triang.C.x - triang.A.x) * (triang.B.z - triang.A.z) - (triang.B.x - triang.A.x) * (triang.C.z - triang.A.z);*/
+}
+
+Delone CTriangulationDlg::replaceZInTriangle(Points pt, Delone triang, double z_value)
+{
+	Delone triang_out;
+	if (triang.A.x == pt.x && triang.A.y == pt.y)
+	{
+		triang.A.z = z_value;
+	}
+
+	if (triang.B.x == pt.x && triang.B.y == pt.y)
+	{
+		triang.B.z = z_value;
+	}
+
+	if (triang.C.x == pt.x && triang.C.y == pt.y)
+	{
+		triang.C.z = z_value;
+	}
+	triang_out = triang;
+	return triang_out;
+}
+
+void CTriangulationDlg::deleteFromPoints(vector<Delone> dln, vector<Points>& pts)
+{
+	bool isTrue = false;
+	for (int i = 0; i < pts.size(); i++)
+	{
+		isTrue = false;
+		for (int j = 0; j < dln.size(); j++)
+		{
+			if ((dln[j].A.x == pts[i].x && dln[j].A.y == pts[i].y)
+				|| (dln[j].B.x == pts[i].x && dln[j].B.y == pts[i].y)
+				|| (dln[j].C.x == pts[i].x && dln[j].C.y == pts[i].y))
+			{
+				isTrue = true;
+			}
+		}
+
+		if (!isTrue)
+		{
+			pts.erase(pts.begin() + i);
+			i--;
+		}
+	}
+}
+
+vector<double> CTriangulationDlg::calcAij(vector<Points> pts, vector<Delone> dln)
+{
+	// Объявляем квадратную матрицу Aij (TxT); T - количество не граничных точек
+	vector<double> Aij;
+
+	// Проходим по пулу НЕграничных точек
+	for (int i = 0; i < pts.size(); i++)
+	{
+		for (int j = 0; j < pts.size(); j++)
+		{
+			// Ситуация #1: i = j ----> Aij = -Sum((A^2 + B^2)*S_tr)
+			double a_ij = 0.0;
+			if (i == j)
+			{
+				// Ищем все треугольники, в которые входит данная точка
+				vector<Delone> neighboursTriang = isDotsNeighbours(pts[j], dln);
+
+				// Считаем Aij
+				if (!neighboursTriang.empty())
+				{
+					for (int k = 0; k < neighboursTriang.size(); k++)
+					{
+						// Расчет площади основания треугольника
+						double square = abs((neighboursTriang[k].B.x - neighboursTriang[k].A.x) * (neighboursTriang[k].C.y - neighboursTriang[k].A.y)
+							- ((neighboursTriang[k].C.x - neighboursTriang[k].A.x) * (neighboursTriang[k].B.y - neighboursTriang[k].A.y)));
+						square /= 2.0;
+
+						// Поднимем координату Z у заданной точки в треугольнике
+						Delone triang = replaceZInTriangle(pts[j], neighboursTriang[k], 1.0);
+
+						// Расчет коэффициентов A,B из уравнения плоскости
+						double A = 0.0;
+						double B = 0.0;
+						calcABForTriang(A, B, triang);
+
+						a_ij += (A * A + B * B) * square;
+					}
+				}
+
+				Aij.push_back(-a_ij);
+			}
+
+			if (i != j)
+			{
+				// Проверяем условие, что i - сосед j
+				vector<Delone> ij_neigh = isIJNeighbours(pts[i], pts[j], dln);
+
+				if (!ij_neigh.empty())
+				{
+					// Считаем Aij
+					for (int k = 0; k < ij_neigh.size(); k++)
+					{
+						// Расчет площади основания треугольника
+						double square = abs((ij_neigh[k].B.x - ij_neigh[k].A.x) * (ij_neigh[k].C.y - ij_neigh[k].A.y)
+							- ((ij_neigh[k].C.x - ij_neigh[k].A.x) * (ij_neigh[k].B.y - ij_neigh[k].A.y)));
+						square /= 2.0;
+
+						// Зануляем ось Z для j-ой точки, чтобы посчитать A1,B1
+						Delone triang1 = replaceZInTriangle(pts[i], ij_neigh[k], 1.0);
+
+						// Считаем A1,B1
+						double A1 = 0.0;
+						double B1 = 0.0;
+						calcABForTriang(A1, B1, triang1);
+
+						// Зануляем ось Z для i-ой точки, а значение j.z = 1.0;
+						Delone triang2 = replaceZInTriangle(pts[j], ij_neigh[k], 1.0);
+
+						// Считаем A1,B1
+						double A2 = 0.0;
+						double B2 = 0.0;
+						calcABForTriang(A2, B2, triang2);
+
+						a_ij += (A1 * A2 + B1 * B2) * square;
+					}
+				}
+
+				Aij.push_back(-a_ij);
+			}
+		}
+	}
+
+	return Aij;
+}
+
+vector<double> CTriangulationDlg::calcBj(vector<Points> pts_border, vector<Points> pts_not_border, vector<Delone> dln)
+{
+	vector<double> Bj;
+
+	for (int j = 0; j < pts_not_border.size(); j++)
+	{
+		double bj = 0.0;
+
+		for (int m = 0; m < pts_border.size(); m++)
+		{
+			double bjm = 0.0;
+			// Ситуация i - сосед j
+			vector<Delone> mj_neigh = isIJNeighbours(pts_border[m], pts_not_border[j], dln);
+			if (!mj_neigh.empty())
+			{
+				for (int k = 0; k < mj_neigh.size(); k++)
+				{
+					// Расчет площади основания треугольника
+					double square = abs((mj_neigh[k].B.x - mj_neigh[k].A.x) * (mj_neigh[k].C.y - mj_neigh[k].A.y)
+						- ((mj_neigh[k].C.x - mj_neigh[k].A.x) * (mj_neigh[k].B.y - mj_neigh[k].A.y)));
+					square /= 2.0;
+
+					// Зануляем ось Z для j-ой точки, чтобы посчитать A1,B1
+					Delone triang1 = replaceZInTriangle(pts_not_border[j], mj_neigh[k], 1.0);
+
+					// Считаем A1,B1
+					double A1 = 0.0;
+					double B1 = 0.0;
+					calcABForTriang(A1, B1, triang1);
+
+					// Зануляем ось Z для m-ой точки, а значение j.z = 1.0;
+					Delone triang2 = replaceZInTriangle(pts_border[m], mj_neigh[k], 1.0);
+
+					// Считаем A1,B1
+					double A2 = 0.0;
+					double B2 = 0.0;
+					calcABForTriang(A2, B2, triang2);
+
+					bjm += (A1 * A2 + B1 * B2) * square;
+				}
+
+				bj = bjm * pts_border[m].potential;
+			}
+		}
+
+		Bj.push_back(bj);
+	}
+	return Bj;
+}
+
+void kazf(vector<double> a, vector<double> b, vector<double>& x, int nn, int ny)
+{
+	// nn - количество неизвестных;  ny - количество уравнений
+	double eps = 1.e-6;
+	int i, j, k;
+	double s1, s2, fa1, t;
+	vector<double> x1(nn);
+
+	x[0] = 0.5;
+	for (i = 1; i < nn; i++)
+	{
+		x[i] = 0.0;
+	}
+
+	s1 = s2 = 1.0;
+	while (s1 > eps * s2)
+	{
+		for (i = 0; i < nn; i++)
+		{
+			x1[i] = x[i];
+		}
+
+		for (i = 0; i < ny; i++)
+		{
+			s1 = 0.0;
+			s2 = 0.0;
+			for (j = 0; j < nn; j++)
+			{
+				fa1 = a[i * nn + j];
+				s1 += fa1 * x[j];
+				s2 += fa1 * fa1;
+			}
+
+			t = (b[i] - s1) / s2;
+			for (k = 0; k < nn; k++)
+			{
+				x[k] += a[i * nn + k] * t;
+			}
+		}
+
+		s1 = 0.0;
+		s2 = 0.0;
+
+		for (i = 0; i < nn; i++)
+		{
+			s1 += (x[i] - x1[i]) * (x[i] - x1[i]);
+			s2 += x[i] * x[i];
+		}
+		s1 = (double)sqrt(s1);
+		s2 = (double)sqrt(s2);
+	}
+}
+
+vector<vector<Points>> CTriangulationDlg::equipotentialLines(vector<Delone> dln)
+{
+	// Построение эквипотенциальных линий (по аналогии с изотермами)
+	double pc_min, pc_max;
+
+	pc_min = dln[0].A.potential;
+	pc_max = dln[0].A.potential;
+
+	for (int i = 0; i < dln.size(); i++)
+	{
+		// max
+		if (pc_max < dln[i].A.potential
+			&& !dln[i].A.is_magnet_border_north
+			&& !dln[i].A.is_magnet_border_south
+			&& !dln[i].A.is_rect_border)
+		{
+			pc_max = dln[i].A.potential;
+		}
+
+		if (pc_max < dln[i].B.potential
+			&& !dln[i].B.is_magnet_border_north
+			&& !dln[i].B.is_magnet_border_south
+			&& !dln[i].B.is_rect_border)
+		{
+			pc_max = dln[i].B.potential;
+		}
+
+		if (pc_max < dln[i].C.potential
+			&& !dln[i].C.is_magnet_border_north
+			&& !dln[i].C.is_magnet_border_south
+			&& !dln[i].C.is_rect_border)
+		{
+			pc_max = dln[i].C.potential;
+		}
+
+		// min
+		if (pc_min > dln[i].A.potential
+			&& !dln[i].A.is_magnet_border_north
+			&& !dln[i].A.is_magnet_border_south
+			&& !dln[i].A.is_rect_border)
+		{
+			pc_min = dln[i].A.potential;
+		}
+
+		if (pc_min > dln[i].B.potential
+			&& !dln[i].B.is_magnet_border_north
+			&& !dln[i].B.is_magnet_border_south
+			&& !dln[i].B.is_rect_border)
+		{
+			pc_min = dln[i].B.potential;
+		}
+
+		if (pc_min > dln[i].C.potential
+			&& !dln[i].C.is_magnet_border_north
+			&& !dln[i].C.is_magnet_border_south
+			&& !dln[i].C.is_rect_border)
+		{
+			pc_min = dln[i].C.potential;
+		}
+	}
+
+	vector<vector<Points>> pts;
+	for (int i = 0; i < dln.size(); i++)
+	{
+		Points p1 = dln[i].A;	// min
+		Points p2 = dln[i].B;
+		Points p3 = dln[i].C;	// max
+
+		// Шаг 2.
+		if (p1.potential > p2.potential)
+		{
+			swap(p1, p2);
+		}
+
+		if (p1.potential > p3.potential)
+		{
+			swap(p1, p3);
+		}
+
+		if (p2.potential > p3.potential)
+		{
+			swap(p2, p3);
+		}
+
+		double step = (abs(pc_max) + abs(pc_min)) / 10.;
+		for (double j = pc_min + step; j < pc_max; j += step)
+		{
+			vector<Points> pair;
+			if (j > p1.potential && j < p3.potential)
+			{
+				Points dot1;
+				dot1.x = p3.x - ((p3.potential - j) * (p3.x - p1.x)) / (p3.potential - p1.potential);
+				dot1.y = p3.y - ((p3.potential - j) * (p3.y - p1.y)) / (p3.potential - p1.potential);
+
+				pair.push_back(dot1);
+
+				if (j > p2.potential)
+				{
+					Points dot2;
+					dot2.x = p3.x - ((p3.potential - j) * (p3.x - p2.x)) / (p3.potential - p2.potential);
+					dot2.y = p3.y - ((p3.potential - j) * (p3.y - p2.y)) / (p3.potential - p2.potential);
+
+					pair.push_back(dot2);
+				}
+
+				else if (j < p2.potential)
+				{
+					Points dot2;
+					dot2.x = p2.x - ((p2.potential - j) * (p2.x - p1.x)) / (p2.potential - p1.potential);
+					dot2.y = p2.y - ((p2.potential - j) * (p2.y - p1.y)) / (p2.potential - p1.potential);
+
+					pair.push_back(dot2);
+				}
+			}
+
+			if (!pair.empty())
+			{
+				pts.push_back(pair);
+			}
+		}
+	}
+
+	return pts;
+}
+
+double IsPointInsidePolygon(vector<Points> p, double x, double y)
+{
+	int i1, i2, n, N, flag;
+	double S, S1, S2, S3;
+	N = p.size();
+	for (n = 0; n < N; n++)
+	{
+		flag = 0;
+		i1 = n < N - 1 ? n + 1 : 0;
+		while (flag == 0)
+		{
+			i2 = i1 + 1;
+			if (i2 >= N)
+				i2 = 0;
+			if (i2 == (n < N - 1 ? n + 1 : 0))
+				break;
+			S = abs(p[i1].x * (p[i2].y - p[n].y) +
+				p[i2].x * (p[n].y - p[i1].y) +
+				p[n].x * (p[i1].y - p[i2].y));
+			S1 = abs(p[i1].x * (p[i2].y - y) +
+				p[i2].x * (y - p[i1].y) +
+				x * (p[i1].y - p[i2].y));
+			S2 = abs(p[n].x * (p[i2].y - y) +
+				p[i2].x * (y - p[n].y) +
+				x * (p[n].y - p[i2].y));
+			S3 = abs(p[i1].x * (p[n].y - y) +
+				p[n].x * (y - p[i1].y) +
+				x * (p[i1].y - p[n].y));
+			if (S == S1 + S2 + S3)
+			{
+				flag = 1;
+				break;
+			}
+			i1 = i1 + 1;
+			if (i1 >= N)
+				i1 = 0;
+			break;
+		}
+		if (flag == 0)
+			break;
+	}
+	return flag;
+}
+
+double area(Points d1, Points d2, Points d3)
+{
+	return abs((d1.x * (d2.y - d3.y) + d2.x * (d3.y - d1.y) + d3.x * (d1.y - d2.y)) / 2.0);
+}
+
+void lineKoef(Points pt1, Points pt2, double& A, double& B, double& C)
+{
+	A = pt1.y - pt2.y;
+	B = pt2.x - pt1.x;
+	C = -pt2.x * pt1.y + pt2.y * pt1.x;
+}
+
+Points lineIntersection(Points start1, Points stop1, Points start2, Points stop2)
+{
+	double eps = 1.e-6;
+
+	double A1 = 0.0;
+	double B1 = 0.0;
+	double C1 = 0.0;
+
+	double A2 = 0.0;
+	double B2 = 0.0;
+	double C2 = 0.0;
+
+	lineKoef(start1, stop1, A1, B1, C1);
+	lineKoef(start2, stop2, A2, B2, C2);
+
+	double d = A1 * B2 - A2 * B1;
+	Points intersect_dot;
+
+	intersect_dot.x = (B1 * C2 - B2 * C1) / d;
+	intersect_dot.y = (C1 * A2 - C2 * A1) / d;
+
+	return intersect_dot;
+}
+
+vector<vector<Points>> CTriangulationDlg::powerLine(vector<Points> pts, vector<Delone> dln)
+{
+	vector<vector<Points>> output;
+
+	double eps = 1.e-9;
+	for (int i = 0; i < polygon.size(); i++)
+	{
+		if (i % 1 == 0)
+		{
+			vector<Points> power;
+			// Добавляем пробные положительные заряды на границе магнита (не в узлах)
+			Points middle;
+			middle.x = polygon[i].x;
+			middle.y = polygon[i].y;
+
+			// Заносим координаты частицы в массив
+			power.push_back(middle);
+
+			int counter = 0;
+			do
+			{
+				// Находим ближайший узел к данной точке
+				int index_min_elem = 0;
+				double distance_min = (pts[0].x - middle.x) * (pts[0].x - middle.x) + (pts[0].y - middle.y) * (pts[0].y - middle.y);
+				for (int j = 0; j < pts.size(); j++)
+				{
+					double distance = (pts[j].x - middle.x) * (pts[j].x - middle.x) + (pts[j].y - middle.y) * (pts[j].y - middle.y);
+					if (distance < distance_min)
+					{
+						distance_min = distance;
+						index_min_elem = j;
+					}
+				}
+
+				// Находим треугольники, в которых содержится найденный узел
+				vector<Delone> triang;
+				for (int j = 0; j < dln.size(); j++)
+				{
+					if ((abs(dln[j].A.x - pts[index_min_elem].x) < eps && abs(dln[j].A.y - pts[index_min_elem].y) < eps)
+						|| (abs(dln[j].B.x - pts[index_min_elem].x) < eps && abs(dln[j].B.y - pts[index_min_elem].y) < eps)
+						|| (abs(dln[j].C.x - pts[index_min_elem].x) < eps && abs(dln[j].C.y - pts[index_min_elem].y) < eps))
+					{
+						triang.push_back(dln[j]);
+					}
+				}
+
+				// Определяем в какому треугольнику принадлежит точка
+				Delone inside_triang;
+				for (int j = 0; j < triang.size(); j++)
+				{
+					double Ar = area(triang[j].A, triang[j].B, triang[j].C);
+					double Ar1 = area(middle, triang[j].B, triang[j].C);
+					double Ar2 = area(triang[j].A, middle, triang[j].C);
+					double Ar3 = area(triang[j].A, triang[j].B, middle);
+
+					if (abs(Ar - (Ar1 + Ar2 + Ar3)) < eps)
+					{
+						inside_triang = triang[j];
+					}
+				}
+
+				inside_triang.A.z = inside_triang.A.potential;
+				inside_triang.B.z = inside_triang.B.potential;
+				inside_triang.C.z = inside_triang.C.potential;
+
+				double A = 0.0;
+				double B = 0.0;
+				calcABForTriang(A, B, inside_triang);
+
+				Points pred = middle;
+
+				Points npts;
+				npts.x = middle.x - A;
+				npts.y = middle.y - B;
+
+				Points intersectAB = lineIntersection(middle, npts, inside_triang.A, inside_triang.B);
+				Points intersectAC = lineIntersection(middle, npts, inside_triang.A, inside_triang.C);
+				Points intersectBC = lineIntersection(middle, npts, inside_triang.B, inside_triang.C);
+
+				double Ar = area(inside_triang.A, inside_triang.B, inside_triang.C);
+
+				double Ar1_AB = area(intersectAB, inside_triang.B, inside_triang.C);
+				double Ar2_AB = area(inside_triang.A, intersectAB, inside_triang.C);
+				double Ar3_AB = area(inside_triang.A, inside_triang.B, intersectAB);
+
+				double Ar1_AC = area(intersectAC, inside_triang.B, inside_triang.C);
+				double Ar2_AC = area(inside_triang.A, intersectAC, inside_triang.C);
+				double Ar3_AC = area(inside_triang.A, inside_triang.B, intersectAC);
+
+				double Ar1_BC = area(intersectBC, inside_triang.B, inside_triang.C);
+				double Ar2_BC = area(inside_triang.A, intersectBC, inside_triang.C);
+				double Ar3_BC = area(inside_triang.A, inside_triang.B, intersectBC);
+
+				if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
+				{
+					double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
+					double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
+					double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
+
+					if (conditionAB >= conditionAC && conditionAB >= conditionBC)
+					{
+						middle = intersectAB;
+					}
+
+					if (conditionAC >= conditionAB && conditionAC >= conditionBC)
+					{
+						middle = intersectAC;
+					}
+
+					if (conditionBC >= conditionAB && conditionBC >= conditionAC)
+					{
+						middle = intersectBC;
+					}
+				}
+
+				else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) > eps)
+				{
+					double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
+					double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
+
+					if (conditionAB >= conditionAC)
+					{
+						middle = intersectAB;
+					}
+					else
+					{
+						middle = intersectAC;
+					}
+				}
+
+				else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) > eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
+				{
+					double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
+					double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
+
+					if (conditionAB >= conditionBC)
+					{
+						middle = intersectAB;
+					}
+					else
+					{
+						middle = intersectBC;
+					}
+				}
+
+				else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) > eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
+				{
+					double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
+					double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
+
+					if (conditionAC >= conditionBC)
+					{
+						middle = intersectAC;
+					}
+					else
+					{
+						middle = intersectBC;
+					}
+				}
+
+				// Находим угол наклона прямой относительно X
+				double side_y = middle.y - pred.y;
+				double side_x = middle.x - pred.x;
+
+				double angle_rad = atan2(side_y, side_x);
+
+				// Величина удлинения
+				double r = 0.0001;
+
+				middle.x += r * cos(angle_rad);
+				middle.y += r * sin(angle_rad);
+
+				counter++;
+				power.push_back(middle);
+
+			} while (counter < 1000 && middle.x > xmin && middle.x < xmax && middle.y > ymin && middle.y < ymax
+						&& !pnpoly(polygon.size(), polygon, middle.x, middle.y));
+
+			output.push_back(power);
+		}
+	}
+
+	return output;
 }
 
 void CTriangulationDlg::OnBnClickedBtnCalc()
@@ -888,7 +1658,7 @@ void CTriangulationDlg::OnBnClickedBtnCalc()
 	// Рисуем точки сверхструктуры и крайние точки области
 	drawSuperstructure(points);
 	drawRectangle(points);
-	
+
 	Points center;
 	center.x = centerMagnetX;
 	center.y = centerMagnetY;
@@ -898,8 +1668,8 @@ void CTriangulationDlg::OnBnClickedBtnCalc()
 		magnet_inner_radius, magnet_outer_radius,
 		magnet_cut_width, magnet_angle_north, magnet_angle_south, polygon, false);
 	drawMagnet(points, center,
-		magnet_inner_radius * 0.95, magnet_outer_radius * 1.05,
-		magnet_cut_width * 0.8, magnet_angle_north, magnet_angle_south, polygon_hitbox, true);
+		magnet_inner_radius * 0.97, magnet_outer_radius * 1.03,
+		magnet_cut_width * 0.93, magnet_angle_north, magnet_angle_south, polygon_hitbox, true);
 
 	// Делаем первоначальную триангуляцию
 	Triangulation(points, triangles);
@@ -925,7 +1695,75 @@ void CTriangulationDlg::OnBnClickedBtnCalc()
 	deleteSuperDots(triangles);
 	deleteFromMagnet(triangles, polygon);
 
-	DrawTriangulation(points, triangles);
+	// Убираем лишние точки из вектора с точками
+	deleteFromPoints(triangles, points);
+
+	//// Расчет матрицы Aij
+	vector<Points> notBorder = notBorderDots(points);
+	vector<double> Aij = calcAij(notBorder, triangles);
+
+	// Расчет вектора свободных членов Bj
+	vector<Points> border = borderDots(points);
+	vector<double> Bj = calcBj(border, notBorder, triangles);
+
+	vector<double> Ci(notBorder.size());
+
+	// Решаем матричное уравнение с помощью Качмаржа
+	kazf(Aij, Bj, Ci, Ci.size(), Bj.size());
+
+	// Обновили массив точек
+	double eps = 1.e-4;
+	for (int i = 0; i < notBorder.size(); i++)
+	{
+		for (int j = 0; j < points.size(); j++)
+		{
+			if (abs(notBorder[i].x - points[j].x) < eps && abs(notBorder[i].y - points[j].y) < eps)
+			{
+				points[j].potential = Ci[i];
+			}
+		}
+	}
+
+	// Обновили массив с триангуляцией
+	for (int i = 0; i < notBorder.size(); i++)
+	{
+		for (int j = 0; j < triangles.size(); j++)
+		{
+			if (abs(notBorder[i].x - triangles[j].A.x) < eps && abs(notBorder[i].y - triangles[j].A.y) < eps)
+			{
+				triangles[j].A.potential = Ci[i];
+			}
+
+			if (abs(notBorder[i].x - triangles[j].B.x) < eps && abs(notBorder[i].y - triangles[j].B.y) < eps)
+			{
+				triangles[j].B.potential = Ci[i];
+			}
+
+			if (abs(notBorder[i].x - triangles[j].C.x) < eps && abs(notBorder[i].y - triangles[j].C.y) < eps)
+			{
+				triangles[j].C.potential = Ci[i];
+			}
+		}
+	}
+
+	/*ofstream out1("Aij.txt");
+	for (int i = 0; i < notBorder.size(); i++)
+	{
+		for (int j = 0; j < notBorder.size(); j++)
+		{
+			out1 << Aij[i * notBorder.size() + j] << "\t";
+		}
+		out1 << "\n";
+	}
+	out1.close();*/
+
+	gl_points = points;
+	gl_triangles = triangles;
+
+	vector<vector<Points>> empty;
+	DrawTriangulation(points, triangles, empty, empty);
+
+	// notBorder.clear();
 	points.clear();
 	triangles.clear();
 }
@@ -933,4 +1771,54 @@ void CTriangulationDlg::OnBnClickedBtnCalc()
 void CTriangulationDlg::OnBnClickedBtnExit()
 {
 	CTriangulationDlg::OnCancel();
+}
+
+void CTriangulationDlg::OnBnClickedCheckGraphPotential()
+{
+	if (!gl_points.empty())
+	{
+		vector<vector<Points>> empty;
+		DrawTriangulation(gl_points, gl_triangles, empty, empty);
+	}
+}
+
+
+void CTriangulationDlg::OnBnClickedCheckGraphEquipotential()
+{
+	if (!gl_triangles.empty())
+	{
+		vector<vector<Points>> equipotential = equipotentialLines(gl_triangles);
+
+		if (graphEquipotential.GetCheck() == BST_CHECKED)
+		{
+			vector<vector<Points>> empty;
+			DrawTriangulation(gl_points, gl_triangles, equipotential, empty);
+		}
+
+		if (graphEquipotential.GetCheck() == BST_UNCHECKED)
+		{
+			vector<vector<Points>> empty;
+			DrawTriangulation(gl_points, gl_triangles, empty, empty);
+		}
+	}
+}
+
+
+void CTriangulationDlg::OnBnClickedCheckGraphPower()
+{
+	if (!gl_triangles.empty())
+	{
+		if (graphPower.GetCheck() == BST_CHECKED)
+		{
+			vector<vector<Points>> power = powerLine(gl_points, gl_triangles);
+			vector<vector<Points>> empty;
+			DrawTriangulation(gl_points, gl_triangles, empty, power);
+		}
+
+		if (graphPower.GetCheck() == BST_UNCHECKED)
+		{
+			vector<vector<Points>> empty;
+			DrawTriangulation(gl_points, gl_triangles, empty, empty);
+		}
+	}
 }
