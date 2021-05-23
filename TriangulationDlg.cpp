@@ -972,23 +972,9 @@ vector<Delone> CTriangulationDlg::isDotsNeighbours(Points pt, vector<Delone> dln
 	// Запоминаем все треугольники, в которые входит заданная точка
 	for (int i = 0; i < dln.size(); i++)
 	{
-		if (abs(dln[i].A.x - pt.x) <= eps && abs(dln[i].A.y - pt.y) <= eps
-			&& !dln[i].B.is_magnet_border_north && !dln[i].B.is_magnet_border_south
-			&& !dln[i].B.is_rect_border)
-		{
-			neighbours.push_back(dln[i]);
-		}
-
-		if (abs(dln[i].B.x - pt.x) <= eps && abs(dln[i].B.y - pt.y) <= eps
-			&& !dln[i].B.is_magnet_border_north && !dln[i].B.is_magnet_border_south
-			&& !dln[i].B.is_rect_border)
-		{
-			neighbours.push_back(dln[i]);
-		}
-
-		if (abs(dln[i].C.x - pt.x) <= eps && abs(dln[i].C.y - pt.y) <= eps
-			&& !dln[i].B.is_magnet_border_north && !dln[i].B.is_magnet_border_south
-			&& !dln[i].B.is_rect_border)
+		if ((abs(dln[i].A.x - pt.x) <= eps && abs(dln[i].A.y - pt.y) <= eps)
+			|| (abs(dln[i].B.x - pt.x) <= eps && abs(dln[i].B.y - pt.y) <= eps)
+			|| (abs(dln[i].C.x - pt.x) <= eps && abs(dln[i].C.y - pt.y) <= eps))
 		{
 			neighbours.push_back(dln[i]);
 		}
@@ -1020,25 +1006,23 @@ void CTriangulationDlg::calcABForTriang(double& A, double& B, Delone triang)
 {
 	A = triang.A.y * (triang.B.z - triang.C.z) + triang.B.y * (triang.C.z - triang.A.z) + triang.C.y * (triang.A.z - triang.B.z);
 	B = triang.A.z * (triang.B.x - triang.C.x) + triang.B.z * (triang.C.x - triang.A.x) + triang.C.z * (triang.A.x - triang.B.x);
-
-	/*A = (triang.B.y - triang.A.y) * (triang.C.z - triang.A.z) - (triang.C.y - triang.A.y) * (triang.B.z - triang.A.z);
-	B = (triang.C.x - triang.A.x) * (triang.B.z - triang.A.z) - (triang.B.x - triang.A.x) * (triang.C.z - triang.A.z);*/
 }
 
 Delone CTriangulationDlg::replaceZInTriangle(Points pt, Delone triang, double z_value)
 {
+	double eps = 1.e-6;
 	Delone triang_out;
-	if (triang.A.x == pt.x && triang.A.y == pt.y)
+	if (abs(triang.A.x - pt.x) < eps && abs(triang.A.y - pt.y) < eps)
 	{
 		triang.A.z = z_value;
 	}
 
-	if (triang.B.x == pt.x && triang.B.y == pt.y)
+	if (abs(triang.B.x - pt.x) < eps && abs(triang.B.y - pt.y) < eps)
 	{
 		triang.B.z = z_value;
 	}
 
-	if (triang.C.x == pt.x && triang.C.y == pt.y)
+	if (abs(triang.C.x - pt.x) < eps && abs(triang.C.y - pt.y) < eps)
 	{
 		triang.C.z = z_value;
 	}
@@ -1048,15 +1032,16 @@ Delone CTriangulationDlg::replaceZInTriangle(Points pt, Delone triang, double z_
 
 void CTriangulationDlg::deleteFromPoints(vector<Delone> dln, vector<Points>& pts)
 {
+	double eps = 1.e-6;
 	bool isTrue = false;
 	for (int i = 0; i < pts.size(); i++)
 	{
 		isTrue = false;
 		for (int j = 0; j < dln.size(); j++)
 		{
-			if ((dln[j].A.x == pts[i].x && dln[j].A.y == pts[i].y)
-				|| (dln[j].B.x == pts[i].x && dln[j].B.y == pts[i].y)
-				|| (dln[j].C.x == pts[i].x && dln[j].C.y == pts[i].y))
+			if ((abs(dln[j].A.x - pts[i].x) < eps && abs(dln[j].A.y - pts[i].y) < eps)
+				|| (abs(dln[j].B.x - pts[i].x) < eps && abs(dln[j].B.y - pts[i].y) < eps)
+				|| (abs(dln[j].C.x - pts[i].x) < eps && abs(dln[j].C.y - pts[i].y) < eps))
 			{
 				isTrue = true;
 			}
@@ -1196,10 +1181,9 @@ vector<double> CTriangulationDlg::calcBj(vector<Points> pts_border, vector<Point
 					bjm += (A1 * A2 + B1 * B2) * square;
 				}
 
-				bj = bjm * pts_border[m].potential;
+				bj += bjm * pts_border[m].potential;
 			}
 		}
-
 		Bj.push_back(bj);
 	}
 	return Bj;
@@ -1470,179 +1454,176 @@ vector<vector<Points>> CTriangulationDlg::powerLine(vector<Points> pts, vector<D
 	double eps = 1.e-9;
 	for (int i = 0; i < polygon.size(); i++)
 	{
-		if (i % 1 == 0)
-		{
-			vector<Points> power;
-			// Добавляем пробные положительные заряды на границе магнита (не в узлах)
-			Points middle;
-			middle.x = polygon[i].x;
-			middle.y = polygon[i].y;
+		vector<Points> power;
+		// Добавляем пробные положительные заряды на границе магнита (не в узлах)
+		Points middle;
+		middle.x = polygon[i].x;
+		middle.y = polygon[i].y;
 
-			// Заносим координаты частицы в массив
+		// Заносим координаты частицы в массив
+		power.push_back(middle);
+
+		int counter = 0;
+		do
+		{
+			// Находим ближайший узел к данной точке
+			int index_min_elem = 0;
+			double distance_min = (pts[0].x - middle.x) * (pts[0].x - middle.x) + (pts[0].y - middle.y) * (pts[0].y - middle.y);
+			for (int j = 0; j < pts.size(); j++)
+			{
+				double distance = (pts[j].x - middle.x) * (pts[j].x - middle.x) + (pts[j].y - middle.y) * (pts[j].y - middle.y);
+				if (distance < distance_min)
+				{
+					distance_min = distance;
+					index_min_elem = j;
+				}
+			}
+
+			// Находим треугольники, в которых содержится найденный узел
+			vector<Delone> triang;
+			for (int j = 0; j < dln.size(); j++)
+			{
+				if ((abs(dln[j].A.x - pts[index_min_elem].x) < eps && abs(dln[j].A.y - pts[index_min_elem].y) < eps)
+					|| (abs(dln[j].B.x - pts[index_min_elem].x) < eps && abs(dln[j].B.y - pts[index_min_elem].y) < eps)
+					|| (abs(dln[j].C.x - pts[index_min_elem].x) < eps && abs(dln[j].C.y - pts[index_min_elem].y) < eps))
+				{
+					triang.push_back(dln[j]);
+				}
+			}
+
+			// Определяем в какому треугольнику принадлежит точка
+			Delone inside_triang;
+			for (int j = 0; j < triang.size(); j++)
+			{
+				double Ar = area(triang[j].A, triang[j].B, triang[j].C);
+				double Ar1 = area(middle, triang[j].B, triang[j].C);
+				double Ar2 = area(triang[j].A, middle, triang[j].C);
+				double Ar3 = area(triang[j].A, triang[j].B, middle);
+
+				if (abs(Ar - (Ar1 + Ar2 + Ar3)) < eps)
+				{
+					inside_triang = triang[j];
+				}
+			}
+
+			inside_triang.A.z = inside_triang.A.potential;
+			inside_triang.B.z = inside_triang.B.potential;
+			inside_triang.C.z = inside_triang.C.potential;
+
+			double A = 0.0;
+			double B = 0.0;
+			calcABForTriang(A, B, inside_triang);
+
+			Points pred = middle;
+
+			Points npts;
+			npts.x = middle.x - A;
+			npts.y = middle.y - B;
+
+			Points intersectAB = lineIntersection(middle, npts, inside_triang.A, inside_triang.B);
+			Points intersectAC = lineIntersection(middle, npts, inside_triang.A, inside_triang.C);
+			Points intersectBC = lineIntersection(middle, npts, inside_triang.B, inside_triang.C);
+
+			double Ar = area(inside_triang.A, inside_triang.B, inside_triang.C);
+
+			double Ar1_AB = area(intersectAB, inside_triang.B, inside_triang.C);
+			double Ar2_AB = area(inside_triang.A, intersectAB, inside_triang.C);
+			double Ar3_AB = area(inside_triang.A, inside_triang.B, intersectAB);
+
+			double Ar1_AC = area(intersectAC, inside_triang.B, inside_triang.C);
+			double Ar2_AC = area(inside_triang.A, intersectAC, inside_triang.C);
+			double Ar3_AC = area(inside_triang.A, inside_triang.B, intersectAC);
+
+			double Ar1_BC = area(intersectBC, inside_triang.B, inside_triang.C);
+			double Ar2_BC = area(inside_triang.A, intersectBC, inside_triang.C);
+			double Ar3_BC = area(inside_triang.A, inside_triang.B, intersectBC);
+
+			if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
+			{
+				double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
+				double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
+				double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
+
+				if (conditionAB >= conditionAC && conditionAB >= conditionBC)
+				{
+					middle = intersectAB;
+				}
+
+				if (conditionAC >= conditionAB && conditionAC >= conditionBC)
+				{
+					middle = intersectAC;
+				}
+
+				if (conditionBC >= conditionAB && conditionBC >= conditionAC)
+				{
+					middle = intersectBC;
+				}
+			}
+
+			else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) > eps)
+			{
+				double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
+				double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
+
+				if (conditionAB >= conditionAC)
+				{
+					middle = intersectAB;
+				}
+				else
+				{
+					middle = intersectAC;
+				}
+			}
+
+			else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) > eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
+			{
+				double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
+				double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
+
+				if (conditionAB >= conditionBC)
+				{
+					middle = intersectAB;
+				}
+				else
+				{
+					middle = intersectBC;
+				}
+			}
+
+			else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) > eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
+			{
+				double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
+				double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
+
+				if (conditionAC >= conditionBC)
+				{
+					middle = intersectAC;
+				}
+				else
+				{
+					middle = intersectBC;
+				}
+			}
+
+			// Находим угол наклона прямой относительно X
+			double side_y = middle.y - pred.y;
+			double side_x = middle.x - pred.x;
+
+			double angle_rad = atan2(side_y, side_x);
+
+			// Величина удлинения
+			double r = 0.0001;
+
+			middle.x += r * cos(angle_rad);
+			middle.y += r * sin(angle_rad);
+
+			counter++;
 			power.push_back(middle);
 
-			int counter = 0;
-			do
-			{
-				// Находим ближайший узел к данной точке
-				int index_min_elem = 0;
-				double distance_min = (pts[0].x - middle.x) * (pts[0].x - middle.x) + (pts[0].y - middle.y) * (pts[0].y - middle.y);
-				for (int j = 0; j < pts.size(); j++)
-				{
-					double distance = (pts[j].x - middle.x) * (pts[j].x - middle.x) + (pts[j].y - middle.y) * (pts[j].y - middle.y);
-					if (distance < distance_min)
-					{
-						distance_min = distance;
-						index_min_elem = j;
-					}
-				}
+		} while (counter < 1000 && middle.x > xmin && middle.x < xmax && middle.y > ymin && middle.y < ymax
+			&& !pnpoly(polygon.size(), polygon, middle.x, middle.y));
 
-				// Находим треугольники, в которых содержится найденный узел
-				vector<Delone> triang;
-				for (int j = 0; j < dln.size(); j++)
-				{
-					if ((abs(dln[j].A.x - pts[index_min_elem].x) < eps && abs(dln[j].A.y - pts[index_min_elem].y) < eps)
-						|| (abs(dln[j].B.x - pts[index_min_elem].x) < eps && abs(dln[j].B.y - pts[index_min_elem].y) < eps)
-						|| (abs(dln[j].C.x - pts[index_min_elem].x) < eps && abs(dln[j].C.y - pts[index_min_elem].y) < eps))
-					{
-						triang.push_back(dln[j]);
-					}
-				}
-
-				// Определяем в какому треугольнику принадлежит точка
-				Delone inside_triang;
-				for (int j = 0; j < triang.size(); j++)
-				{
-					double Ar = area(triang[j].A, triang[j].B, triang[j].C);
-					double Ar1 = area(middle, triang[j].B, triang[j].C);
-					double Ar2 = area(triang[j].A, middle, triang[j].C);
-					double Ar3 = area(triang[j].A, triang[j].B, middle);
-
-					if (abs(Ar - (Ar1 + Ar2 + Ar3)) < eps)
-					{
-						inside_triang = triang[j];
-					}
-				}
-
-				inside_triang.A.z = inside_triang.A.potential;
-				inside_triang.B.z = inside_triang.B.potential;
-				inside_triang.C.z = inside_triang.C.potential;
-
-				double A = 0.0;
-				double B = 0.0;
-				calcABForTriang(A, B, inside_triang);
-
-				Points pred = middle;
-
-				Points npts;
-				npts.x = middle.x - A;
-				npts.y = middle.y - B;
-
-				Points intersectAB = lineIntersection(middle, npts, inside_triang.A, inside_triang.B);
-				Points intersectAC = lineIntersection(middle, npts, inside_triang.A, inside_triang.C);
-				Points intersectBC = lineIntersection(middle, npts, inside_triang.B, inside_triang.C);
-
-				double Ar = area(inside_triang.A, inside_triang.B, inside_triang.C);
-
-				double Ar1_AB = area(intersectAB, inside_triang.B, inside_triang.C);
-				double Ar2_AB = area(inside_triang.A, intersectAB, inside_triang.C);
-				double Ar3_AB = area(inside_triang.A, inside_triang.B, intersectAB);
-
-				double Ar1_AC = area(intersectAC, inside_triang.B, inside_triang.C);
-				double Ar2_AC = area(inside_triang.A, intersectAC, inside_triang.C);
-				double Ar3_AC = area(inside_triang.A, inside_triang.B, intersectAC);
-
-				double Ar1_BC = area(intersectBC, inside_triang.B, inside_triang.C);
-				double Ar2_BC = area(inside_triang.A, intersectBC, inside_triang.C);
-				double Ar3_BC = area(inside_triang.A, inside_triang.B, intersectBC);
-
-				if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
-				{
-					double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
-					double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
-					double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
-
-					if (conditionAB >= conditionAC && conditionAB >= conditionBC)
-					{
-						middle = intersectAB;
-					}
-
-					if (conditionAC >= conditionAB && conditionAC >= conditionBC)
-					{
-						middle = intersectAC;
-					}
-
-					if (conditionBC >= conditionAB && conditionBC >= conditionAC)
-					{
-						middle = intersectBC;
-					}
-				}
-
-				else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) > eps)
-				{
-					double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
-					double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
-
-					if (conditionAB >= conditionAC)
-					{
-						middle = intersectAB;
-					}
-					else
-					{
-						middle = intersectAC;
-					}
-				}
-
-				else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) < eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) > eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
-				{
-					double conditionAB = (intersectAB.x - middle.x) * (intersectAB.x - middle.x) + (intersectAB.y - middle.y) * (intersectAB.y - middle.y);
-					double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
-
-					if (conditionAB >= conditionBC)
-					{
-						middle = intersectAB;
-					}
-					else
-					{
-						middle = intersectBC;
-					}
-				}
-
-				else if (abs(Ar - (Ar1_AB + Ar2_AB + Ar3_AB)) > eps && abs(Ar - (Ar1_AC + Ar2_AC + Ar3_AC)) < eps && abs(Ar - (Ar1_BC + Ar2_BC + Ar3_BC)) < eps)
-				{
-					double conditionAC = (intersectAC.x - middle.x) * (intersectAC.x - middle.x) + (intersectAC.y - middle.y) * (intersectAC.y - middle.y);
-					double conditionBC = (intersectBC.x - middle.x) * (intersectBC.x - middle.x) + (intersectBC.y - middle.y) * (intersectBC.y - middle.y);
-
-					if (conditionAC >= conditionBC)
-					{
-						middle = intersectAC;
-					}
-					else
-					{
-						middle = intersectBC;
-					}
-				}
-
-				// Находим угол наклона прямой относительно X
-				double side_y = middle.y - pred.y;
-				double side_x = middle.x - pred.x;
-
-				double angle_rad = atan2(side_y, side_x);
-
-				// Величина удлинения
-				double r = 0.0001;
-
-				middle.x += r * cos(angle_rad);
-				middle.y += r * sin(angle_rad);
-
-				counter++;
-				power.push_back(middle);
-
-			} while (counter < 1000 && middle.x > xmin && middle.x < xmax && middle.y > ymin && middle.y < ymax
-						&& !pnpoly(polygon.size(), polygon, middle.x, middle.y));
-
-			output.push_back(power);
-		}
+		output.push_back(power);
 	}
 
 	return output;
